@@ -2,7 +2,7 @@
 
 `ExeInfo` is a Windows program that displays the type of EXE files.
 
-![Screenshot](exeinfo.jpg "Screenshot")
+![Screenshot](exeinfo.png "Screenshot")
 
 ## Usage
 
