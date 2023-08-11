@@ -188,8 +188,6 @@ bool exeInfo(FILE *fp, std::string &information)
 
 	if (dwordBuf[0] == 'P' && dwordBuf[1] == 'E') {
 
-		// TODO 32bit(PE)/64bit(PE+)
-
 		fread(wordBuf, 2, 1, fp);
 		uint16_t machine = GetWord(wordBuf);
 		fseek(fp, 0x12, SEEK_CUR);
