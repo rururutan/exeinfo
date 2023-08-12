@@ -121,13 +121,13 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "i860 XP";
 			break;
 		  case 0x40:
-			information += "MIPS MarkI(R2000/R3000";
+			information += "MIPS I(R2000/R3000)";
 			break;
 		  case 0x41:
-			information += "MIPS MarkII(R6000)";
+			information += "MIPS II(R6000)";
 			break;
 		  case 0x42:
-			information += "MIPS MarkIII(R4000)";
+			information += "MIPS III(R4000)";
 			break;
 		  default:
 			information += "Unknown CPU";
@@ -323,12 +323,12 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "SH5";
 			break;
 		case 0x6232:
-			// LoognArch 32bit
-			information += "LoognArch 32bit";
+			// LoongArch 32bit
+			information += "LoongArch 32bit";
 			break;
 		case 0x6264:
-			// LoognArch 64bit
-			information += "LoognArch 64bit";
+			// LoongArch 64bit
+			information += "LoongArch 64bit";
 			break;
 		case 0x1d3:
 			// Matsushita AM33
