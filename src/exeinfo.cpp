@@ -23,12 +23,19 @@ bool exeInfo(FILE *fp, std::string &information)
 	uint8_t oldStyleHeader[0x20];
 	size_t readed = fread(oldStyleHeader, sizeof(oldStyleHeader), 1, fp);
 	if (readed != 1) {
-		printf("size error1 %zd\n", readed);
+		information += "Header size error\n";
 		return false;
 	}
 
 	if (oldStyleHeader[0] != 'M' || oldStyleHeader[1] != 'Z') {
-		printf("No exe file\n");
+		if ((oldStyleHeader[0] != 'P' || oldStyleHeader[1] != '2') ||
+			(oldStyleHeader[0] != 'P' || oldStyleHeader[1] != '3') ||
+			(oldStyleHeader[0] != 'M' || oldStyleHeader[1] != 'P') ||
+			(oldStyleHeader[0] != 'M' || oldStyleHeader[1] != 'Q')) {
+			information = "Phar Lap DOS extenders";
+			return true;
+		}
+		information += "Unknown EXE format\n";
 		return false;
 	}
 
@@ -158,6 +165,7 @@ bool exeInfo(FILE *fp, std::string &information)
 		fread(wordBuf, 1, 2, fp);
 		uint16_t kind = GetWord(wordBuf);
 		if ((kind & 0x28000) == 0x8000) {
+			// Library module
 			information += "DLL";
 		}
 		if ((kind & 0x20000) > 0) {
@@ -168,19 +176,6 @@ bool exeInfo(FILE *fp, std::string &information)
 		}
 		if ((kind & 0x28300) < 0x300) {
 			information += "Console";
-		}
-
-		switch(kind) {
-		  case 03:
-			information += "DOS 4.x";
-			break;
-		  case 04:
-			information += "Windows 386";
-			break;
-		  default:
-//			information += "Unknown";
-//			printf("Unknown kind 0x%x ", kind);
-			break;
 		}
 
 		return true;
