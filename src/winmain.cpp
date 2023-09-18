@@ -78,14 +78,13 @@ int WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow)
 		}
 
 		std::string info;
-		if (exeInfo(fp, info) == true) {
-			std::string u8FileName;
-			UTF16toUTF8(fileName, u8FileName);
-			information += std::string(u8FileName);
-			information += "\n ";
-			information += info;
-			information += "\n";
-		}
+		exeInfo(fp, info);
+		std::string u8FileName;
+		UTF16toUTF8(fileName, u8FileName);
+		information += std::string(u8FileName);
+		information += "\n ";
+		information += info;
+		information += "\n";
 
 		fclose(fp);
 	}
