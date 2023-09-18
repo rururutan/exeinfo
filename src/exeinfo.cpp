@@ -1,4 +1,3 @@
-
 #include<cstdio>
 #include<cstdint>
 #include<string>
@@ -28,11 +27,12 @@ bool exeInfo(FILE *fp, std::string &information)
 	}
 
 	if (oldStyleHeader[0] != 'M' || oldStyleHeader[1] != 'Z') {
-		if ((oldStyleHeader[0] != 'P' || oldStyleHeader[1] != '2') ||
-			(oldStyleHeader[0] != 'P' || oldStyleHeader[1] != '3') ||
-			(oldStyleHeader[0] != 'M' || oldStyleHeader[1] != 'P') ||
-			(oldStyleHeader[0] != 'M' || oldStyleHeader[1] != 'Q')) {
-			information = "Phar Lap DOS extenders";
+		if ((oldStyleHeader[0] == 'P' && oldStyleHeader[1] == '2') ||
+			(oldStyleHeader[0] == 'P' && oldStyleHeader[1] == '3') ||
+			(oldStyleHeader[0] == 'D' && oldStyleHeader[1] == 'L') ||
+			(oldStyleHeader[0] == 'M' && oldStyleHeader[1] == 'P') ||
+			(oldStyleHeader[0] == 'M' && oldStyleHeader[1] == 'Q')) {
+			information += "Phar Lap DOS extenders";
 			return true;
 		}
 		information += "Unknown EXE format\n";
@@ -347,6 +347,12 @@ bool exeInfo(FILE *fp, std::string &information)
 		return true;
 	}
 
+	if (dwordBuf[0] == 'P' && dwordBuf[1] == 'M') {
+		information = "MS-DOS PMODE/W";
+		return true;
+	}
+
+	information += "Unknown EXE format\n";
 	return false;
 }
 
