@@ -214,7 +214,7 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "x86";
 			break;
 		  case 0x8664:
-			// AMD64/IA64
+			// AMD64
 			information += "x86-64";
 			break;
 		  case 0x200:
@@ -223,22 +223,26 @@ bool exeInfo(FILE *fp, std::string &information)
 			break;
 		case 0x184:
 			// Alpha
-			information += "ALPHA";
+			information += "Alpha";
+			break;
+		case 0x284:
+			// Alpha AXP64
+			information += "AXP64";
 			break;
 		case 0x1c0:
-			// ARM
+			// ARM little endian
 			information += "ARM";
 			break;
 		case 0x1c2:
-			// ARM thumb
-			information += "ARM thumb";
+			// ARM Thumb
+			information += "ARM Thumb";
 			break;
 		case 0x1c4:
-			// ARM thumb2
-			information += "ARM thumb2";
+			// ARM Thumb-2 little endian
+			information += "ARM Thumb-2";
 			break;
 		case 0xaa64:
-			// ARM64
+			// ARM64 little endian
 			information += "ARM64";
 			break;
 		case 0x162:
@@ -269,16 +273,12 @@ bool exeInfo(FILE *fp, std::string &information)
 			// MIPS16 with FPU
 			information += "MIPS16 with FPU";
 			break;
-		case 0x284:
-			// M68K
-			information += "AXP64";
-			break;
 		case 0x268:
 			// M68K
 			information += "M68K";
 			break;
 		case 0x1f0:
-			// PowerPC
+			// PowerPC little endian
 			information += "PowerPC";
 			break;
 		case 0x1f1:
@@ -303,19 +303,19 @@ bool exeInfo(FILE *fp, std::string &information)
 			break;
 		case 0x1a2:
 			// SH3
-			information += "SH3";
+			information += "Hitachi SH3";
 			break;
 		case 0x1a3:
 			// SH3 DSP
-			information += "SH3 DSP";
+			information += "Hitachi SH3 DSP";
 			break;
 		case 0x1a6:
 			// SH4
-			information += "SH4";
+			information += "Hitachi SH4";
 			break;
 		case 0x1a8:
 			// SH5
-			information += "SH5";
+			information += "Hitachi SH5";
 			break;
 		case 0x6232:
 			// LoongArch 32bit
@@ -328,6 +328,10 @@ bool exeInfo(FILE *fp, std::string &information)
 		case 0x1d3:
 			// Matsushita AM33
 			information += "Matsushita AM33";
+			break;
+		case 0x9041:
+			// Mitsubishi M32R
+			information += "Mitsubishi M32R";
 			break;
 		case 0xebc:
 			// EFI byte code
