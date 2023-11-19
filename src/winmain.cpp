@@ -84,7 +84,7 @@ int WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow)
 		information += std::string(u8FileName);
 		information += "\n ";
 		information += info;
-		information += "\n";
+		information += "\n\n";
 
 		fclose(fp);
 	}
