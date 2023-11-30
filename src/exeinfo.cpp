@@ -2,12 +2,12 @@
 #include<cstdint>
 #include<string>
 
-static uint16_t GetWord(unsigned char*ptr)
+static uint16_t GetU16LE(uint8_t*ptr)
 {
 	return ptr[0] + (ptr[1]<<8);
 }
 
-static uint32_t GetDword(unsigned char*ptr)
+static uint32_t GetU32LE(uint8_t*ptr)
 {
 	return ptr[0] + (ptr[1]<<8) + (ptr[2]<<16) + (ptr[3]<<24);
 }
@@ -35,27 +35,32 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "Phar Lap DOS extenders";
 			return true;
 		}
+		if ((oldStyleHeader[0] == 0x7f && oldStyleHeader[1] == 'E') &&
+			(oldStyleHeader[2] == 'L'  && oldStyleHeader[3] == 'F') ) {
+			information += "ELF (OS/2 PowerPC?)\n";
+			return true;
+		}
+
 		information += "Unknown EXE format\n";
 		return false;
 	}
 
-	uint16_t offsRelocationTable = GetWord(&oldStyleHeader[0x18]);
+	uint16_t offsRelocationTable = GetU16LE(&oldStyleHeader[0x18]);
 
-	uint8_t wordBuf[2] = {0};
-
-	// 0x1Cに0x40が格納されていなければ旧形式
+	// Judged to be old format unless 0x40 is stored at offset 0x1C.
 	if (offsRelocationTable != 0x40) {
 		information = "MS-DOS";
 		return true;
 	}
 
+	uint8_t wordBuf[2] = { 0 };
 	uint8_t dwordBuf[4];
 	fseek(fp, 0x3c, SEEK_SET);
 	if (fread(dwordBuf, 4, 1, fp) != 1) {
 		printf("Size error\n");
 		return false;
 	}
-	uint32_t offsSegmentExeHeader = GetDword(dwordBuf);
+	uint32_t offsSegmentExeHeader = GetU32LE(dwordBuf);
 
 	fseek(fp, offsSegmentExeHeader, SEEK_SET);
 	fread(dwordBuf, 4, 1, fp);
@@ -104,9 +109,9 @@ bool exeInfo(FILE *fp, std::string &information)
 
 		fseek(fp, 4, SEEK_CUR);
 		fread(wordBuf, 1, 2, fp);
-		uint16_t cpuType = GetWord(wordBuf);
+		uint16_t cpuType = GetU16LE(wordBuf);
 		fread(wordBuf, 1, 2, fp);
-		uint16_t osType = GetWord(wordBuf);
+		uint16_t osType = GetU16LE(wordBuf);
 
 		switch(cpuType) {
 		  case 01:
@@ -163,7 +168,7 @@ bool exeInfo(FILE *fp, std::string &information)
 
 		fseek(fp, 4, SEEK_CUR);
 		fread(wordBuf, 1, 2, fp);
-		uint16_t kind = GetWord(wordBuf);
+		uint16_t kind = GetU16LE(wordBuf);
 		if ((kind & 0x28000) == 0x8000) {
 			// Library module
 			information += "DLL";
@@ -184,10 +189,10 @@ bool exeInfo(FILE *fp, std::string &information)
 	if (dwordBuf[0] == 'P' && dwordBuf[1] == 'E') {
 
 		fread(wordBuf, 2, 1, fp);
-		uint16_t machine = GetWord(wordBuf);
+		uint16_t machine = GetU16LE(wordBuf);
 		fseek(fp, 0x12, SEEK_CUR);
 		fread(wordBuf, 2, 1, fp);
-		uint16_t peFormat = GetWord(wordBuf);
+		uint16_t peFormat = GetU16LE(wordBuf);
 
 		// PE format header + 18h
 		switch(peFormat) {
