@@ -47,14 +47,28 @@ bool exeInfo(FILE *fp, std::string &information)
 
 	uint16_t offsRelocationTable = GetU16LE(&oldStyleHeader[0x18]);
 
+	uint8_t wordBuf[2] = {};
+	uint8_t dwordBuf[4] = {};
+
 	// Judged to be old format unless 0x40 is stored at offset 0x1C.
 	if (offsRelocationTable != 0x40) {
 		information = "MS-DOS";
+
+		if (memcmp("diet", &oldStyleHeader[0x1c], 4) == 0) {
+			information += " (Diet)";
+		}
+		if (memcmp("LZ91", &oldStyleHeader[0x1c], 4) == 0) {
+			information += " (LZEXE)";
+		}
+		if (memcmp("PK", &oldStyleHeader[0x1e], 2) == 0) {
+			fread(dwordBuf, 4, 1, fp);
+			if (memcmp("LITE", dwordBuf, 4) == 0) {
+				information += " (PKLite)";
+			}
+		}
 		return true;
 	}
 
-	uint8_t wordBuf[2] = { 0 };
-	uint8_t dwordBuf[4];
 	fseek(fp, 0x3c, SEEK_SET);
 	if (fread(dwordBuf, 4, 1, fp) != 1) {
 		printf("Size error\n");
@@ -404,6 +418,9 @@ bool exeInfo(FILE *fp, std::string &information)
 			fread(sectionData, 0x28, 1, fp);
 			if (memcmp(".a64xrm", sectionData, 8) == 0) {
 				information += " (ARM64EC)";
+			}
+			if (memcmp("UPX0", sectionData, 4) == 0) {
+				information += " (UPX)";
 			}
 		}
 
