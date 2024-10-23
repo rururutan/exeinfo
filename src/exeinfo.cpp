@@ -79,16 +79,26 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "OS/2 1.x";
 			break;
 		  case 2:
-			information += "MS Windows 3.x";
+			information += "MS Windows 2~3";
 			break;
 		  case 3:
-			information += "MS-DOS";
+			information += "MS-DOS 4.x(multitasking)";
 			break;
 		  case 4:
 			information += "Windows 386";
 			break;
 		  case 5:
 			information += "Borland Operating System Service";
+			break;
+		  case 0x81:
+			information += "Phar Lap 286|DOS Extender(OS/2)";
+			break;
+		  case 0x82:
+			information += "Phar Lap 286|DOS Extender(Windows)";
+			break;
+		  case 0xC4:
+			// Only some files of WIndows 1.x (USER.EXE, CALENDAR.EXE, etc.)
+			information += "MS Windows 1";
 			break;
 		  default:
 			break;
@@ -155,7 +165,7 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "Windows";
 			break;
 		  case 03:
-			information += "DOS 4.x";
+			information += "MS-DOS 4.x(multitasking)";
 			break;
 		  case 04:
 			information += "Windows 386";
@@ -190,7 +200,17 @@ bool exeInfo(FILE *fp, std::string &information)
 
 		fread(wordBuf, 2, 1, fp);
 		uint16_t machine = GetU16LE(wordBuf);
-		fseek(fp, 0x12, SEEK_CUR);
+		fread(wordBuf, 2, 1, fp);
+		uint16_t numberOfSections = GetU16LE(wordBuf);
+
+		fseek(fp, 0x0c, SEEK_CUR);
+
+		fread(wordBuf, 2, 1, fp);
+		uint16_t sizeOfOptionalHeader = GetU16LE(wordBuf);
+
+		fread(wordBuf, 2, 1, fp);
+		uint16_t characteristics = GetU16LE(wordBuf);
+
 		fread(wordBuf, 2, 1, fp);
 		uint16_t peFormat = GetU16LE(wordBuf);
 
@@ -228,7 +248,7 @@ bool exeInfo(FILE *fp, std::string &information)
 			break;
 		case 0x184:
 			// Alpha
-			information += "Alpha";
+			information += "Alpha64";
 			break;
 		case 0x284:
 			// Alpha AXP64
@@ -353,11 +373,45 @@ bool exeInfo(FILE *fp, std::string &information)
 			break;
 		}
 
+		// PE: Segment header + 0x5c (word)
+		// Subsystem
+		fseek(fp, 0x42, SEEK_CUR);
+		fread(wordBuf, 2, 1, fp);
+		uint16_t peSubSystem = GetU16LE(wordBuf);
+		// machine
+		switch(peSubSystem) {
+			case 1:
+				information += " Device Driver";
+				break;
+			case 2:
+				information += " GUI";
+				break;
+			case 3:
+				information += " Console";
+				break;
+			default:
+				break;
+		}
+
+		if ((characteristics & 0x2000) > 0) {
+				information += " DLL";
+		}
+
+		// Search section
+		fseek(fp, offsSegmentExeHeader+0x18+sizeOfOptionalHeader, SEEK_SET);
+		uint8_t sectionData[0x28] {};
+		for (int i=0; i < numberOfSections; i++) {
+			fread(sectionData, 0x28, 1, fp);
+			if (memcmp(".a64xrm", sectionData, 8) == 0) {
+				information += " (ARM64EC)";
+			}
+		}
+
 		return true;
 	}
 
 	if (dwordBuf[0] == 'P' && dwordBuf[1] == 'M') {
-		information = "MS-DOS PMODE/W";
+		information = "MS-DOS PMODE/W DOS Extender";
 		return true;
 	}
 
@@ -365,7 +419,7 @@ bool exeInfo(FILE *fp, std::string &information)
 	return false;
 }
 
-#if 0
+#ifdef CUI_BUILD
 int main(int argc, char* argv[])
 {
 	if (argc <= 1) {
@@ -376,11 +430,14 @@ int main(int argc, char* argv[])
 	for (int i=1; i<argc; i++) {
 		printf(argv[i]);
 		printf(":\n");
-		FILE* fp = fopen(fileName, "rb");
-		std::string info;
-		exeInfo(fp, info);
-		printf(info.c_str());
-		printf("\n");
+		FILE* fp = fopen(argv[i], "rb");
+		if (fp) {
+			std::string info;
+			exeInfo(fp, info);
+			printf(info.c_str());
+			printf("\n");
+			fclose(fp);
+		}
 	}
 
 	return 0;
