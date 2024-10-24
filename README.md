@@ -10,10 +10,12 @@
 
 ## Build
 
-> mkdir vs2022
-> cd vs2022
-> cmake ../ -G "Visual Studio 17 2022"
-> start ExeInfo.sln
+```console
+mkdir vs2022
+cd vs2022
+cmake ../ -G "Visual Studio 17 2022"
+start ExeInfo.sln
+```
 
 ## License
 
