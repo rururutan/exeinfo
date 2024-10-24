@@ -19,6 +19,10 @@ bool exeInfo(FILE *fp, std::string &information)
 		return false;
 	}
 
+	fseek(fp, 0, SEEK_END);
+	long fileSize = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
 	uint8_t oldStyleHeader[0x20];
 	size_t readed = fread(oldStyleHeader, sizeof(oldStyleHeader), 1, fp);
 	if (readed != 1) {
@@ -32,7 +36,7 @@ bool exeInfo(FILE *fp, std::string &information)
 			(oldStyleHeader[0] == 'D' && oldStyleHeader[1] == 'L') ||
 			(oldStyleHeader[0] == 'M' && oldStyleHeader[1] == 'P') ||
 			(oldStyleHeader[0] == 'M' && oldStyleHeader[1] == 'Q')) {
-			information += "Phar Lap DOS extenders";
+			information += "Phar Lap DOS Extenders";
 			return true;
 		}
 		if ((oldStyleHeader[0] == 0x7f && oldStyleHeader[1] == 'E') &&
@@ -55,15 +59,38 @@ bool exeInfo(FILE *fp, std::string &information)
 		information = "MS-DOS";
 
 		if (memcmp("diet", &oldStyleHeader[0x1c], 4) == 0) {
-			information += " (Diet)";
+			information += " (DIET)";
 		}
 		if (memcmp("LZ91", &oldStyleHeader[0x1c], 4) == 0) {
 			information += " (LZEXE)";
+		}
+		if (memcmp("LZ09", &oldStyleHeader[0x1c], 4) == 0) {
+			information += " (LZEXE)";
+		}
+		if (memcmp("WWP ", &oldStyleHeader[0x1c], 4) == 0) {
+			information += " (WWPACK)";
 		}
 		if (memcmp("PK", &oldStyleHeader[0x1e], 2) == 0) {
 			fread(dwordBuf, 4, 1, fp);
 			if (memcmp("LITE", dwordBuf, 4) == 0) {
 				information += " (PKLite)";
+			}
+		}
+		if (fileSize > 0x30) {
+			uint8_t axeBuf[7] {};
+			fseek(fp, 0x20, SEEK_SET);
+			fread(axeBuf, 7, 1, fp);
+			if (memcmp("-AXE", axeBuf+3, 4) == 0) {
+				// AXE 2.0 'SEA-AXE'
+				// AXE 1.1(JP) '\0MD-AXEJ'
+				information += " (AXE)";
+			}
+		}
+		if (fileSize > 0x60) {
+			fseek(fp, 0x55, SEEK_SET);
+			fread(dwordBuf, 4, 1, fp);
+			if (memcmp("UPX!", dwordBuf, 4) == 0) {
+				information += " (UPX)";
 			}
 		}
 		return true;
@@ -183,6 +210,9 @@ bool exeInfo(FILE *fp, std::string &information)
 			break;
 		  case 04:
 			information += "Windows 386";
+			break;
+		  case 05:
+			information += "IBM Microkernel Personality Neutral";
 			break;
 		  default:
 			information += "Unknown OS";
@@ -416,11 +446,17 @@ bool exeInfo(FILE *fp, std::string &information)
 		uint8_t sectionData[0x28] {};
 		for (int i=0; i < numberOfSections; i++) {
 			fread(sectionData, 0x28, 1, fp);
-			if (memcmp(".a64xrm", sectionData, 8) == 0) {
+			if (memcmp(".a64xrm", sectionData, 7) == 0) {
 				information += " (ARM64EC)";
 			}
 			if (memcmp("UPX0", sectionData, 4) == 0) {
 				information += " (UPX)";
+			}
+			if (memcmp(".pklstb", sectionData, 7) == 0) {
+				information += " (PKLite32)";
+			}
+			if (memcmp(".WWP32", sectionData, 6) == 0) {
+				information += " (WWPACK32)";
 			}
 		}
 
