@@ -358,6 +358,10 @@ bool exeInfo(FILE *fp, std::string &information)
 			// PowerPC big-endian
 			information += "PowerPC (big-endian)";
 			break;
+		case 0x520:
+			// Infineon TriCore
+			information += "TriCore";
+			break;
 		case 0x5032:
 			// Risc-V 32bit
 			information += "RISC-V 32bit";
