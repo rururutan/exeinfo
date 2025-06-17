@@ -76,6 +76,18 @@ bool exeInfo(FILE *fp, std::string &information)
 				information += " (PKLite)";
 			}
 		}
+		{
+			uint8_t exepack_header[18] = {};
+			uint32_t exepack_header_ofs = GetU16LE(&oldStyleHeader[0x08]) * 0x10;
+			exepack_header_ofs += GetU16LE(&oldStyleHeader[0x16]) * 0x10;
+			fseek(fp, exepack_header_ofs, SEEK_SET);
+			if (fread(exepack_header, 18, 1, fp) == 1) {
+				if (memcmp("RB", &exepack_header[0x10], 2) == 0 ||
+					memcmp("RB", &exepack_header[0x0e], 2) == 0) {
+					information += " (EXEPACK)";
+				}
+			}
+		}
 		if (fileSize > 0x30) {
 			uint8_t axeBuf[7] {};
 			fseek(fp, 0x20, SEEK_SET);
