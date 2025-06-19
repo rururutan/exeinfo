@@ -2,6 +2,23 @@
 #include<cstdint>
 #include<string>
 
+enum MZHeaderOffset {
+	MZ_MAGIC       = 0x00, // Signature "MZ"
+	MZ_CBLP        = 0x02, // Bytes on last page of file
+	MZ_CP          = 0x04, // Pages in file
+	MZ_CRLC        = 0x06, // Relocations
+	MZ_CPARHDR     = 0x08, // Size of header in paragraphs
+	MZ_MINALLOC    = 0x0A, // Minimum extra paragraphs needed
+	MZ_MAXALLOC    = 0x0C, // Maximum extra paragraphs needed
+	MZ_SS          = 0x0E, // Initial (relative) SS
+	MZ_SP          = 0x10, // Initial SP
+	MZ_CHECKSUM    = 0x12, // Checksum
+	MZ_IP          = 0x14, // Initial IP
+	MZ_CS          = 0x16, // Initial (relative) CS
+	MZ_RELOC_TABLE = 0x18, // Offset of relocation table
+	MZ_OVNO        = 0x1A, // Overlay number
+};
+
 static uint16_t GetU16LE(uint8_t*ptr)
 {
 	return ptr[0] + (ptr[1]<<8);
@@ -36,7 +53,12 @@ bool exeInfo(FILE *fp, std::string &information)
 			(oldStyleHeader[0] == 'D' && oldStyleHeader[1] == 'L') ||
 			(oldStyleHeader[0] == 'M' && oldStyleHeader[1] == 'P') ||
 			(oldStyleHeader[0] == 'M' && oldStyleHeader[1] == 'Q')) {
-			information += "Phar Lap DOS Extenders";
+			information += "Phar Lap DOS Extender\n";
+			return true;
+		}
+		if ((oldStyleHeader[0] == 'A' && oldStyleHeader[1] == 'd') &&
+			(oldStyleHeader[2] == 'a'  && oldStyleHeader[3] == 'm') ) {
+			information += "DOS32 Extender\n";
 			return true;
 		}
 		if ((oldStyleHeader[0] == 0x7f && oldStyleHeader[1] == 'E') &&
@@ -49,7 +71,7 @@ bool exeInfo(FILE *fp, std::string &information)
 		return false;
 	}
 
-	uint16_t offsRelocationTable = GetU16LE(&oldStyleHeader[0x18]);
+	uint16_t offsRelocationTable = GetU16LE(&oldStyleHeader[MZ_RELOC_TABLE]);
 
 	uint8_t wordBuf[2] = {};
 	uint8_t dwordBuf[4] = {};
@@ -60,26 +82,29 @@ bool exeInfo(FILE *fp, std::string &information)
 
 		if (memcmp("diet", &oldStyleHeader[0x1c], 4) == 0) {
 			information += " (DIET)";
-		}
+		} else
 		if (memcmp("LZ91", &oldStyleHeader[0x1c], 4) == 0) {
 			information += " (LZEXE)";
-		}
+		} else
 		if (memcmp("LZ09", &oldStyleHeader[0x1c], 4) == 0) {
 			information += " (LZEXE)";
-		}
+		} else
 		if (memcmp("WWP ", &oldStyleHeader[0x1c], 4) == 0) {
 			information += " (WWPACK)";
-		}
+		} else
+		if (memcmp("UC2X", &oldStyleHeader[0x1c], 4) == 0) {
+			information += " (UCEXE)";
+		} else
 		if (memcmp("PK", &oldStyleHeader[0x1e], 2) == 0) {
 			fread(dwordBuf, 4, 1, fp);
 			if (memcmp("LITE", dwordBuf, 4) == 0) {
 				information += " (PKLite)";
 			}
-		}
+		} else
 		{
 			uint8_t exepack_header[18] = {};
-			uint32_t exepack_header_ofs = GetU16LE(&oldStyleHeader[0x08]) * 0x10;
-			exepack_header_ofs += GetU16LE(&oldStyleHeader[0x16]) * 0x10;
+			uint32_t exepack_header_ofs = GetU16LE(&oldStyleHeader[MZ_CPARHDR]) * 0x10;
+			exepack_header_ofs += GetU16LE(&oldStyleHeader[MZ_CS]) * 0x10;
 			fseek(fp, exepack_header_ofs, SEEK_SET);
 			if (fread(exepack_header, 18, 1, fp) == 1) {
 				if (memcmp("RB", &exepack_header[0x10], 2) == 0 ||
@@ -97,7 +122,7 @@ bool exeInfo(FILE *fp, std::string &information)
 				// AXE 1.1(JP) '\0MD-AXEJ'
 				information += " (AXE)";
 			}
-		}
+		} else
 		if (fileSize > 0x60) {
 			fseek(fp, 0x55, SEEK_SET);
 			fread(dwordBuf, 4, 1, fp);
@@ -119,20 +144,22 @@ bool exeInfo(FILE *fp, std::string &information)
 	fread(dwordBuf, 4, 1, fp);
 	if (dwordBuf[0] == 'N' && dwordBuf[1] == 'E') {
 		// https://wiki.osdev.org/NE
-		information += "New Executable : ";
+		information += "New Executable version.";
+		information += std::to_string((int)dwordBuf[2]);
+		information += ": ";
 
-		fseek(fp, 0x32, SEEK_CUR);
+		fseek(fp, offsSegmentExeHeader+0x36, SEEK_SET);
 		uint8_t targOS;
 		fread(&targOS, 1, 1, fp);
 		switch(targOS) {
 		  case 0:
-			information += "OS/2 1.0 or MS Windows 1~2";
+			information += "OS/2 1.0 or Windows 1~2";
 			break;
 		  case 1:
 			information += "OS/2 1.x";
 			break;
 		  case 2:
-			information += "MS Windows 2~3";
+			information += "Windows 2~3";
 			break;
 		  case 3:
 			information += "MS-DOS 4.x(multitasking)";
@@ -151,10 +178,42 @@ bool exeInfo(FILE *fp, std::string &information)
 			break;
 		  case 0xC4:
 			// Only some files of WIndows 1.x (USER.EXE, CALENDAR.EXE, etc.)
-			information += "MS Windows 1";
+			information += "Windows 1";
 			break;
 		  default:
 			break;
+		}
+		fseek(fp, offsSegmentExeHeader+0x0c, SEEK_SET);
+		fread(dwordBuf, 2, 1, fp);
+		if (dwordBuf[1] & 0x80) {
+			information += " DLL";
+		} else {
+			information += " EXE";
+		}
+		switch(dwordBuf[1] & 0x07) {
+		  case 1:
+			information += " FullScreen";
+			break;
+		  case 2:
+			information += " Console";
+			break;
+		  case 3:
+			information += " GUI";
+			break;
+		  default:
+			break;
+		}
+		if (dwordBuf[0] & 0x10) {
+			information += " 8086";
+		}
+		if (dwordBuf[0] & 0x20) {
+			information += " 80286";
+		}
+		if (dwordBuf[0] & 0x40) {
+			information += " i386";
+		}
+		if (dwordBuf[0] & 0x80) {
+			information += " x87";
 		}
 		return true;
 	}
@@ -163,10 +222,10 @@ bool exeInfo(FILE *fp, std::string &information)
 		(dwordBuf[0] == 'L' && dwordBuf[1] == 'X') ) {
 
 		if (dwordBuf[1] == 'E') {
-			// OS/2 2.0 later, Win3.x Win9x VXD
+			// LE OS/2 2.0 later, Win3.x Win9x VXD
 			information += "Linear Executable (16/32bit mixed) : ";
 		} else {
-			// OS/2 2.0 later
+			// LX OS/2 2.0 later
 			information += "Linear Executable (32bit) : ";
 		}
 
@@ -181,13 +240,13 @@ bool exeInfo(FILE *fp, std::string &information)
 			information += "80286";
 			break;
 		  case 02:
-			information += "80386";
+			information += "i386";
 			break;
 		  case 03:
-			information += "80486";
+			information += "i486";
 			break;
 		  case 04:
-			information += "80586";
+			information += "Pentium";
 			break;
 		  case 0x20:
 			information += "i860 XR";
