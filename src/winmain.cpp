@@ -8,6 +8,7 @@
 #include <wchar.h>
 #include <vector>
 #include "exeinfo.h"
+#include "messagebox.h"
 
 #define DIALOG_TITLE L"ExeInfo"
 
@@ -19,7 +20,7 @@ static void ShowLastError(DWORD _code){
 		(LPWSTR)&lpMsgBuf,
 		0,
 		NULL);
-	MessageBox(NULL, lpMsgBuf, DIALOG_TITLE, MB_ICONERROR);
+	ShowCustomMessage(NULL, lpMsgBuf, DIALOG_TITLE);
 	LocalFree(lpMsgBuf);
 }
 
@@ -33,6 +34,23 @@ static bool UTF16toUTF8(const wchar_t* _inPtr, std::string& _outStr)
 	_outStr = u8Buf.data();
 	return true;
 }
+
+static bool UTF8toUTF16(const char* _inPtr, std::wstring& _outStr)
+{
+	const int u16Len = MultiByteToWideChar(CP_UTF8, 0, _inPtr, -1, nullptr, 0);
+	if (u16Len <= 0) {
+		_outStr.clear();
+		return false;
+	}
+
+	auto u16Buf = std::vector<wchar_t>(u16Len + 1);
+	MultiByteToWideChar(CP_UTF8, 0, _inPtr, -1, u16Buf.data(), u16Len);
+
+	_outStr = u16Buf.data();
+
+	return true;
+}
+
 
 int WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -89,7 +107,9 @@ int WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmdLine, int nCmdShow)
 		fclose(fp);
 	}
 
-	MessageBoxA(NULL, information.c_str(), "ExeInfo", MB_OK);
+	std::wstring informationW;
+	UTF8toUTF16(information.c_str(), informationW);
+	ShowCustomMessage(NULL, informationW.c_str(), DIALOG_TITLE);
 	LocalFree(argv);
 
 	return 0;

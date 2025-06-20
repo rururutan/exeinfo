@@ -1,0 +1,1 @@
+#define IDR_MSGBOX	101

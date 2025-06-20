@@ -1,8 +1,4 @@
-//#include "resource.h"
+#include "resource.h"
 
-IDI_ICON ICON DISCARDABLE "exeinfo.ico"
-
-#define CREATEPROCESS_MANIFEST_RESOURCE_ID 1
-#define RT_MANIFEST 24
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "exeinfo.manifest"
+IDR_MSGBOX ICON "exeinfo.ico"
 
