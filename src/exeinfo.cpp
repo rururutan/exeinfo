@@ -1,4 +1,3 @@
-
 #include<cstdio>
 #include<cstdint>
 #include<string>
@@ -30,7 +29,75 @@ static uint32_t GetU32LE(uint8_t*ptr)
 	return ptr[0] + (ptr[1]<<8) + (ptr[2]<<16) + (ptr[3]<<24);
 }
 
+static bool checkDOS(FILE *fp, std::string &information, uint8_t *oldStyleHeader, long fileSize) {
+	uint8_t dwordBuf[4] = {};
+
+	if (memcmp("diet", &oldStyleHeader[0x1c], 4) == 0) {
+		information += " (DIET)";
+	} else
+	if (memcmp("LZ91", &oldStyleHeader[0x1c], 4) == 0) {
+		information += " (LZEXE)";
+	} else
+	if (memcmp("LZ09", &oldStyleHeader[0x1c], 4) == 0) {
+		information += " (LZEXE)";
+	} else
+	if (memcmp("WWP ", &oldStyleHeader[0x1c], 4) == 0) {
+		information += " (WWPACK)";
+	} else
+	if (memcmp("UC2X", &oldStyleHeader[0x1c], 4) == 0) {
+		information += " (UCEXE)";
+	} else
+	if (memcmp("PK", &oldStyleHeader[0x1e], 2) == 0) {
+		fseek(fp, 0x20, SEEK_SET);
+		fread(dwordBuf, 4, 1, fp);
+		if (memcmp("LITE", dwordBuf, 4) == 0) {
+			information += " (PKLite)";
+		}
+	} else
+	{
+		uint8_t exepack_header[18] = {};
+		uint32_t exepack_header_ofs = GetU16LE(&oldStyleHeader[MZ_CPARHDR]) * 0x10;
+		exepack_header_ofs += GetU16LE(&oldStyleHeader[MZ_CS]) * 0x10;
+		fseek(fp, exepack_header_ofs, SEEK_SET);
+		if (fread(exepack_header, 18, 1, fp) == 1) {
+			if (memcmp("RB", &exepack_header[0x10], 2) == 0 ||
+				memcmp("RB", &exepack_header[0x0e], 2) == 0) {
+				information += " (EXEPACK)";
+			}
+		}
+	}
+	if (fileSize > 0x30) {
+		uint8_t axeBuf[7] {};
+		fseek(fp, 0x20, SEEK_SET);
+		fread(axeBuf, 7, 1, fp);
+		if (memcmp("-AXE", axeBuf+3, 4) == 0) {
+			// AXE 2.0 'SEA-AXE'
+			// AXE 1.1(JP) as 瞬間AXE '\0MD-AXEJ'
+			information += " (AXE)";
+		}
+	} else
+	if (fileSize > 0x60) {
+		fseek(fp, 0x55, SEEK_SET);
+		fread(dwordBuf, 4, 1, fp);
+		if (memcmp("UPX!", dwordBuf, 4) == 0) {
+			information += " (UPX)";
+		}
+	}
+	{
+		uint32_t go32_header_ofs = GetU16LE(&oldStyleHeader[MZ_CPARHDR]) * 0x10;
+		uint8_t go32Buf[8] = {};
+		fseek(fp, go32_header_ofs, SEEK_SET);
+		if (fread(go32Buf, 8, 1, fp) == 1) {
+			if (memcmp("go32stub", go32Buf, 8) == 0) {
+				information += " (DJGPP DOS Extender)";
+			}
+		}
+	}
+	return true;
+}
+
 static bool checkNE(FILE *fp, std::string &information, uint32_t offsSegmentExeHeader) {
+	uint8_t wordBuf[2] = {};
 	uint8_t dwordBuf[4] = {};
 	// https://wiki.osdev.org/NE
 	fseek(fp, offsSegmentExeHeader+0x36, SEEK_SET);
@@ -38,13 +105,27 @@ static bool checkNE(FILE *fp, std::string &information, uint32_t offsSegmentExeH
 	fread(&targOS, 1, 1, fp);
 	switch (targOS) {
 	case 0:
-		information += "OS/2 1.0 or Windows 1~2";
+	{
+		fseek(fp, offsSegmentExeHeader+0x3e, SEEK_SET);
+		fread(&wordBuf, 2, 1, fp);
+		if (GetU16LE(wordBuf) != 0) {
+			information += "Windows ";
+			information += std::to_string((int)wordBuf[1]) + "." + std::to_string((int)wordBuf[0]);
+		} else {
+			information += "OS/2 1.0 or Windows 1~2";
+		}
+	}
 		break;
 	case 1:
 		information += "OS/2 1.x";
 		break;
 	case 2:
-		information += "Windows 2~3";
+	{
+		information += "Windows ";
+		fseek(fp, offsSegmentExeHeader+0x3e, SEEK_SET);
+		fread(&wordBuf, 2, 1, fp);
+		information += std::to_string((int)wordBuf[1]) + "." + std::to_string((int)wordBuf[0]);
+	}
 		break;
 	case 3:
 		information += "MS-DOS 4.x(multitasking)";
@@ -98,6 +179,15 @@ static bool checkNE(FILE *fp, std::string &information, uint32_t offsSegmentExeH
 	if (dwordBuf[0] & 0x80) {
 		information += " x87";
 	}
+
+	if (offsSegmentExeHeader>=0x80) {
+		fseek(fp, 0x42, SEEK_SET);
+		uint8_t pklBuf[6] = {};
+		fread(pklBuf, 6, 1, fp);
+		if (memcmp("PKlite", pklBuf, 6) == 0) {
+			information += " (PKLite)";
+		}
+	}
 	return true;
 }
 
@@ -105,9 +195,9 @@ static bool checkLE(FILE *fp, std::string &information, uint32_t offsSegmentExeH
 	uint8_t wordBuf[2] = {};
 
 	fseek(fp, offsSegmentExeHeader+8, SEEK_SET);
-	fread(wordBuf, 1, 2, fp);
+	fread(wordBuf, 2, 1, fp);
 	uint16_t cpuType = GetU16LE(wordBuf);
-	fread(wordBuf, 1, 2, fp);
+	fread(wordBuf, 2, 1, fp);
 	uint16_t osType = GetU16LE(wordBuf);
 
 	switch (cpuType) {
@@ -152,10 +242,15 @@ static bool checkLE(FILE *fp, std::string &information, uint32_t offsSegmentExeH
 		information += "Windows";
 		break;
 	case 03:
-		information += "MS-DOS 4.x(multitasking)";
+		information += "Multitasking MS-DOS";
 		break;
 	case 04:
-		information += "Windows 386";
+	{
+		information += "Windows ";
+		fseek(fp, offsSegmentExeHeader+0xc2, SEEK_SET);
+		fread(wordBuf, 2, 1, fp);
+		information += std::to_string((int)wordBuf[1]) + "." + std::to_string((int)wordBuf[0]);
+	}
 		break;
 	case 05:
 		information += "IBM Microkernel Personality Neutral";
@@ -462,64 +557,6 @@ bool exeInfo(FILE *fp, std::string &information)
 	uint16_t offsRelocationTable = GetU16LE(&oldStyleHeader[MZ_RELOC_TABLE]);
 
 	uint8_t dwordBuf[4] = {};
-
-	// Judged to be old format unless 0x40 is stored at offset 0x1C.
-	if (offsRelocationTable != 0x40) {
-		information = "MS-DOS";
-
-		if (memcmp("diet", &oldStyleHeader[0x1c], 4) == 0) {
-			information += " (DIET)";
-		} else
-		if (memcmp("LZ91", &oldStyleHeader[0x1c], 4) == 0) {
-			information += " (LZEXE)";
-		} else
-		if (memcmp("LZ09", &oldStyleHeader[0x1c], 4) == 0) {
-			information += " (LZEXE)";
-		} else
-		if (memcmp("WWP ", &oldStyleHeader[0x1c], 4) == 0) {
-			information += " (WWPACK)";
-		} else
-		if (memcmp("UC2X", &oldStyleHeader[0x1c], 4) == 0) {
-			information += " (UCEXE)";
-		} else
-		if (memcmp("PK", &oldStyleHeader[0x1e], 2) == 0) {
-			fread(dwordBuf, 4, 1, fp);
-			if (memcmp("LITE", dwordBuf, 4) == 0) {
-				information += " (PKLite)";
-			}
-		} else
-		{
-			uint8_t exepack_header[18] = {};
-			uint32_t exepack_header_ofs = GetU16LE(&oldStyleHeader[MZ_CPARHDR]) * 0x10;
-			exepack_header_ofs += GetU16LE(&oldStyleHeader[MZ_CS]) * 0x10;
-			fseek(fp, exepack_header_ofs, SEEK_SET);
-			if (fread(exepack_header, 18, 1, fp) == 1) {
-				if (memcmp("RB", &exepack_header[0x10], 2) == 0 ||
-					memcmp("RB", &exepack_header[0x0e], 2) == 0) {
-					information += " (EXEPACK)";
-				}
-			}
-		}
-		if (fileSize > 0x30) {
-			uint8_t axeBuf[7] {};
-			fseek(fp, 0x20, SEEK_SET);
-			fread(axeBuf, 7, 1, fp);
-			if (memcmp("-AXE", axeBuf+3, 4) == 0) {
-				// AXE 2.0 'SEA-AXE'
-				// AXE 1.1(JP) '\0MD-AXEJ'
-				information += " (AXE)";
-			}
-		} else
-		if (fileSize > 0x60) {
-			fseek(fp, 0x55, SEEK_SET);
-			fread(dwordBuf, 4, 1, fp);
-			if (memcmp("UPX!", dwordBuf, 4) == 0) {
-				information += " (UPX)";
-			}
-		}
-		return true;
-	}
-
 	fseek(fp, 0x3c, SEEK_SET);
 	if (fread(dwordBuf, 4, 1, fp) != 1) {
 		printf("Size error\n");
@@ -529,35 +566,41 @@ bool exeInfo(FILE *fp, std::string &information)
 	uint32_t offsSegmentExeHeader = GetU32LE(dwordBuf);
 
 	fseek(fp, offsSegmentExeHeader, SEEK_SET);
-	fread(dwordBuf, 4, 1, fp);
+	if (fread(dwordBuf, 4, 1, fp) == 1) {
 
-	if (dwordBuf[0] == 'N' && dwordBuf[1] == 'E') {
-		information += "New Executable version.";
-		information += std::to_string((int)dwordBuf[2]);
-		information += ": ";
-		return checkNE(fp, information, offsSegmentExeHeader);
-	}
-
-	if ((dwordBuf[0] == 'L' && dwordBuf[1] == 'E') ||
-		(dwordBuf[0] == 'L' && dwordBuf[1] == 'X') ) {
-
-		if (dwordBuf[1] == 'E') {
-			// LE OS/2 2.0 later, Win3.x Win9x VXD
-			information += "Linear Executable (16/32bit mixed) : ";
-		} else {
-			// LX OS/2 2.0 later
-			information += "Linear Executable (32bit) : ";
+		if (dwordBuf[0] == 'N' && dwordBuf[1] == 'E') {
+			information += "New Executable version.";
+			information += std::to_string((int)dwordBuf[2]);
+			information += ": ";
+			return checkNE(fp, information, offsSegmentExeHeader);
 		}
-		return checkLE(fp, information, offsSegmentExeHeader);
+
+		if ((dwordBuf[0] == 'L' && dwordBuf[1] == 'E') ||
+			(dwordBuf[0] == 'L' && dwordBuf[1] == 'X') ) {
+			if (dwordBuf[1] == 'E') {
+				// LE OS/2 2.0 later, Win3.x Win9x VXD
+				information += "Linear Executable (16/32bit mixed) : ";
+			} else {
+				// LX OS/2 2.0 later
+				information += "Linear Executable (32bit) : ";
+			}
+			return checkLE(fp, information, offsSegmentExeHeader);
+		}
+
+		if (dwordBuf[0] == 'P' && dwordBuf[1] == 'E') {
+			return checkPE(fp, information, offsSegmentExeHeader);
+		}
+
+		if (dwordBuf[0] == 'P' && dwordBuf[1] == 'M') {
+			information = "MS-DOS PMODE/W DOS Extender";
+			return true;
+		}
 	}
 
-	if (dwordBuf[0] == 'P' && dwordBuf[1] == 'E') {
-		return checkPE(fp, information, offsSegmentExeHeader);
-	}
-
-	if (dwordBuf[0] == 'P' && dwordBuf[1] == 'M') {
-		information = "MS-DOS PMODE/W DOS Extender";
-		return true;
+	// Judged to be old format unless 0x40 is stored at offset 0x1C.
+	if (offsRelocationTable != 0x40) {
+		information = "MS-DOS";
+		return checkDOS(fp, information, oldStyleHeader, fileSize);
 	}
 
 	information += "Unknown EXE format\n";
@@ -573,10 +616,10 @@ int main(int argc, char* argv[])
 	}
 
 	for (int i=1; i<argc; i++) {
-		printf(argv[i]);
-		printf(":\n");
 		FILE* fp = fopen(argv[i], "rb");
 		if (fp) {
+			printf(argv[i]);
+			printf(":\n");
 			std::string info;
 			exeInfo(fp, info);
 			printf(info.c_str());
