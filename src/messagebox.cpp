@@ -107,9 +107,12 @@ int ShowCustomMessage(HWND owner, LPCWSTR text, LPCWSTR title) {
     const int margin = ScaleByDPI(10, dpi), gap = ScaleByDPI(10, dpi), bottomMargin = ScaleByDPI(10, dpi);
     const int btnW = ScaleByDPI(80, dpi), btnH = ScaleByDPI(25, dpi);
 
+    int fontHeight = -MulDiv(9, dpi, 72);
+    HFONT hFont = CreateFontW(fontHeight, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 
     HDC hdcMem = CreateCompatibleDC(NULL);
-    HFONT hFont = (HFONT)GetStockObject(SYSTEM_FONT);
     SelectObject(hdcMem, hFont);
     RECT rcText = {0, 0, maxTextWidth, 0};
     DrawTextW(hdcMem, text, -1, &rcText,
@@ -190,14 +193,6 @@ int ShowCustomMessage(HWND owner, LPCWSTR text, LPCWSTR title) {
         }
     }
     DestroyAcceleratorTable(hAcc);
+    DeleteObject(hFont);
     return (int)msg.wParam;
 }
-
-#ifdef TEST_BUILD
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-    ShowCustomMessage(NULL,
-        L"これはカスタムメッセージです。\nダークモード対応済み。",
-        L"カスタムダイアログ");
-    return 0;
-}
-#endif
