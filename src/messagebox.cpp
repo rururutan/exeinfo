@@ -184,9 +184,10 @@ int ShowCustomMessage(HWND owner, LPCWSTR text, LPCWSTR title) {
 
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
+    SetCursor(LoadCursor(NULL, IDC_ARROW));
 
     MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
+    while (GetMessage(&msg, NULL, 0, 0) > 0) {
         if (!TranslateAcceleratorW(hwnd, hAcc, &msg)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
