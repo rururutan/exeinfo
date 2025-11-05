@@ -75,7 +75,7 @@ static bool checkDOS(FILE *fp, std::string &information, uint8_t *oldStyleHeader
 			// AXE 1.1(JP) as 瞬間AXE '\0MD-AXEJ'
 			information += " (AXE)";
 		}
-	} else
+	}
 	if (fileSize > 0x60) {
 		fseek(fp, 0x55, SEEK_SET);
 		fread(dwordBuf, 4, 1, fp);
@@ -90,6 +90,16 @@ static bool checkDOS(FILE *fp, std::string &information, uint8_t *oldStyleHeader
 		if (fread(go32Buf, 8, 1, fp) == 1) {
 			if (memcmp("go32stub", go32Buf, 8) == 0) {
 				information += " (DJGPP DOS Extender)";
+			}
+		}
+	}
+	{
+		uint32_t wdosx_header_ofs = GetU16LE(&oldStyleHeader[MZ_CPARHDR]) * 0x10;
+		uint8_t wdosxBuf[4] = {};
+		fseek(fp, wdosx_header_ofs, SEEK_SET);
+		if (fread(wdosxBuf, 4, 1, fp) == 1) {
+			if (memcmp("$WdX", wdosxBuf, 4) == 0) {
+				information += " (WDOS/X DOS Extender)";
 			}
 		}
 	}
@@ -493,7 +503,12 @@ static bool checkPE(FILE *fp, std::string &information, uint32_t offsSegmentExeH
 	for (int i = 0; i < numberOfSections; i++) {
 		fread(sectionData, 0x28, 1, fp);
 		if (memcmp(".a64xrm", sectionData, 7) == 0) {
-			information += " (ARM64EC)";
+			if (machine == 0x8664) {
+				information += " (ARM64EC)";
+			}
+			if (machine == 0xaa64) {
+				information += " (ARM64X)";
+			}
 		}
 		if (memcmp("UPX0", sectionData, 4) == 0) {
 			information += " (UPX)";
