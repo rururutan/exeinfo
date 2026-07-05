@@ -22,10 +22,8 @@ Handles DOS stubs, NE, LE/LX, and PE/PE32+/PE64 headers
 Build Requirements: CMake and Visual Studio
 
 ```console
-mkdir vs2022
-cd vs2022
-cmake ../ -G "Visual Studio 17 2022"
-start ExeInfo.sln
+cmake -S . -B build
+cmake --build build --config Release
 ```
 
 ## License

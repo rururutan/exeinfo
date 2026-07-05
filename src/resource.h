@@ -1,1 +1,2 @@
 #define IDR_MSGBOX	101
+#define IDC_COPY_MESSAGE  1001
