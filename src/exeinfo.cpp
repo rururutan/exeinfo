@@ -32,7 +32,12 @@ static uint32_t GetU32LE(uint8_t*ptr)
 static bool checkDOS(FILE *fp, std::string &information, uint8_t *oldStyleHeader, long fileSize) {
 	uint8_t dwordBuf[4] = {};
 
+	if (memcmp("dlz", &oldStyleHeader[0x57], 3) == 0) {
+		// Diet 1.20
+		information += " (DIET)";
+	} else
 	if (memcmp("diet", &oldStyleHeader[0x1c], 4) == 0) {
+		// Diet 1.44
 		information += " (DIET)";
 	} else
 	if (memcmp("LZ91", &oldStyleHeader[0x1c], 4) == 0) {
